@@ -1,0 +1,10 @@
+# compiled binaries
+/bin/
+*.exe
+
+# secrets / env — never commit API keys
+.env
+*.env.local
+
+# Claude Code — machine-local settings, do not commit
+.claude/settings.local.json
