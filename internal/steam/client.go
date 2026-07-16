@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	// BaseURL in Steam requset
+	// DefaultBaseURL is the BaseURL in Steam request
 	DefaultBaseURL = "https://api.steampowered.com"
-	// Maximum time allowed for single request
+	// DefaultTimeout is the Maximum time allowed for single request
 	DefaultTimeout = 10 * time.Second
 )
 
@@ -28,11 +28,12 @@ type Client struct {
 
 type Option func(*Client)
 
-// overrides the API base URL
+// WithBaseURL overrides the API base URL
 func WithBaseURL(u string) Option {
 	return func(c *Client) { c.baseURL = u }
 }
 
+// New creates a Steam API client. The key must be non-empty
 func New(apiKey string, opts ...Option) (*Client, error) {
 	if apiKey == "" {
 		return nil, errors.New("steam: API key is required")
@@ -48,9 +49,6 @@ func New(apiKey string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// Steam error :
-//   - bad/expired key         → HTTP 401, body may carry response.error
-//   - private/unknown profile → HTTP 200 with an empty players slice (NOT an error)
 type playerSummariesResponse struct {
 	Response struct {
 		Players []PlayerSummary `json:"players"`
@@ -58,12 +56,22 @@ type playerSummariesResponse struct {
 	} `json:"response"`
 }
 
+type playerOwnedGamesResponse struct {
+	Response struct {
+		Games []Game      `json:"games"`
+		Error *steamError `json:"error,omitempty"`
+	} `json:"response"`
+}
+
+// Steam error :
+//   - bad/expired key         → HTTP 401, body may carry response.error
+//   - private/unknown profile → HTTP 200 with an empty players slice (NOT an error)
 type steamError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
 
-// fetches profile summaries for the given 64-bit Steam IDs
+// GetPlayerSummaries fetches profile summaries for the given 64-bit Steam IDs.
 // Private or unknown IDs are simply absent from the result (this is normal,
 // not an error).
 // An error means the call itself failed (bad key, network, etc.)
@@ -108,4 +116,46 @@ func (c *Client) GetPlayerSummaries(ctx context.Context, steamIDs []string) ([]P
 			parsed.Response.Error.Code, parsed.Response.Error.Message)
 	}
 	return parsed.Response.Players, nil
+}
+
+// GetPlayerOwnedGames fetches profile games for the given 64-bit Steam IDs.
+func (c *Client) GetPlayerOwnedGames(ctx context.Context, steamID string) ([]Game, error) {
+	requestURL := fmt.Sprintf("%s/IPlayerService/GetOwnedGames/v0001/", c.baseURL)
+	q := url.Values{}
+	q.Set("key", c.apiKey)
+	q.Set("steamid", steamID)
+	q.Set("include_appinfo", "true")
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.URL.RawQuery = q.Encode()
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("steam: GetPlayerOwnedGames HTTP %d %s",
+			response.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var parsed playerOwnedGamesResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, fmt.Errorf("steam: decode GetPlayerOwnedGames: %w", err)
+	}
+
+	if parsed.Response.Error != nil {
+		return nil, fmt.Errorf("steam: API err %d: %s", parsed.Response.Error.Code, parsed.Response.Error.Message)
+	}
+
+	return parsed.Response.Games, nil
 }

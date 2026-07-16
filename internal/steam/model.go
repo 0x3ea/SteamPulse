@@ -1,7 +1,7 @@
 package steam
 
-// Maps to the JSON field in the GetPlayerSummaries response
-// unnecessary field will be ignored
+// PlayerSummary Maps to the JSON field in the GetPlayerSummaries response.
+// unnecessary field will be ignored.
 // api document: https://developer.valvesoftware.com/wiki/Steam_Web_API#GetPlayerSummaries_(v0002)
 type PlayerSummary struct {
 	SteamID     string `json:"steamid"`
@@ -23,7 +23,16 @@ type PlayerSummary struct {
 	PrimaryClanID  string `json:"primaryclanid"`
 }
 
-// whether the profile is visible to this API
+// IsPublic reports whether the profile is visible to this API
 func (p PlayerSummary) IsPublic() bool {
 	return p.CommunityVisibilityState == 3
+}
+
+// Game Maps to the JSON field in the GetPlayerOwnedGames response.
+type Game struct {
+	AppID           int64  `json:"appid"`
+	Name            string `json:"name"`
+	PlaytimeForever int    `json:"playtime_forever"` // minutes
+	RtimeLastPlayed int64  `json:"rtime_last_played"`
+	ImgIconURL      string `json:"img_icon_url"`
 }

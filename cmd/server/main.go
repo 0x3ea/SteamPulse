@@ -6,7 +6,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	httpadapter "github.com/0x3ea/SteamPulse/internal/adapter/http"
+	httpadapter "github.com/0x3ea/SteamPulse/internal/adapter/httpapi"
 	"github.com/0x3ea/SteamPulse/internal/core"
 	"github.com/0x3ea/SteamPulse/internal/steam"
 )

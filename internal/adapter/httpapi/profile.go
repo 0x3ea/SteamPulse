@@ -1,4 +1,4 @@
-package http
+package httpapi
 
 import (
 	"errors"
@@ -9,20 +9,17 @@ import (
 	"github.com/0x3ea/SteamPulse/internal/core"
 )
 
-// Transfrom:
-// http request -> core call
-// result of core call -> http response
-
+// Handler transforms http request -> core call and result of core call -> http response
 type Handler struct {
 	core *core.Service
 }
 
+// NewHandler return a handler backed by core.Service.
 func NewHandler(svc *core.Service) *Handler {
 	return &Handler{core: svc}
 }
 
-// handle [GET] /api/profile/:id
-// id is a 17-digit SteamID64
+// GetProfile handles [GET] /api/profile/:id which id is a 17-digit SteamID64
 func (h *Handler) GetProfile(c *gin.Context) {
 	id := c.Param("id")
 
